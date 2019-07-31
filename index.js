@@ -55,59 +55,44 @@ class NeuralNetwork
 		return this.output_neuron.value(hidden_values);
 	}
 
-	train(_tests, _count)
+	trainOnTests(_tests, _count)
 	{
 		for(let i = 0; i < _count; i++)
 		{
-			let guesses = [];
-			let hidden_neuron_values = [];
-			let input_values = [];
-
 			_tests.forEach(
 				(test, index) =>
 				{
-					let inputs = test.inputs;
-					let expected_output = test.expected_output;
-					let hidden_values = [];
-
-					this.hidden_neurons.forEach(
-						(neuron, index) =>
-						{
-							hidden_values.push(neuron.value(inputs));
-						}
-					);
-
-					let guess = this.output_neuron.value(hidden_values);
-
-					guesses.push(guess);
-					hidden_neuron_values.push(hidden_values);
-					input_values.push(inputs);
-				}
-			);
-
-			let adjustments = [];
-
-			_tests.forEach(
-				(test, index) =>
-				{
-					let expected_output = test.expected_output;
-					let guess = guesses[index];
-					let error = expected_output - guess;
-					let adjustment = error * sigmoid_derivative(guess);
-
-					adjustments.push(adjustment);
-				}
-			);
-
-			this.output_neuron.adjust(adjustments, guesses, hidden_neuron_values);
-
-			this.hidden_neurons.forEach(
-				(neuron, index) =>
-				{
-					neuron.adjust(adjustments, guesses, input_values);
+					this.trainOnTest(test);
 				}
 			);
 		}
+	}
+
+	trainOnTest(_test)
+	{
+		let inputs = _test.inputs;
+		let expected_output = _test.expected_output;
+		let hidden_values = [];
+
+		this.hidden_neurons.forEach(
+			(neuron, index) =>
+			{
+				hidden_values.push(neuron.value(inputs));
+			}
+		);
+
+		let guess = this.output_neuron.value(hidden_values);
+		let error = expected_output - guess;
+		let adjustment = error * sigmoid_derivative(guess);
+
+		this.output_neuron.adjust(adjustment, guess, hidden_values);
+
+		this.hidden_neurons.forEach(
+			(neuron, index) =>
+			{
+				neuron.adjust(adjustment, guess, inputs);
+			}
+		);
 	}
 }
 
@@ -143,12 +128,12 @@ class Neuron
 		return value;
 	}
 
-	adjust(_adjustments, _guesses, _inputs)
+	adjust(_adjustment, _guess, _inputs)
 	{
 		this.synapses.forEach(
 			(synapse, index) =>
 			{
-				synapse.adjust(_adjustments, _guesses, _inputs, index);
+				synapse.adjust(_adjustment, _guess, _inputs[index]);
 			}
 		);
 	}
@@ -171,16 +156,9 @@ class Synapse
 		return this;
 	}
 
-	adjust(_adjustments, _guesses, _inputs, _input_index)
+	adjust(_adjustment, _guess, _input)
 	{
-		let adjustment = 0;
-
-		_adjustments.forEach(
-			(test, index) =>
-			{
-				adjustment += _inputs[index][_input_index] * _adjustments[index];
-			}
-		);
+		let adjustment = _input * _adjustment;
 		
 		this.weight += adjustment;
 	}
@@ -188,14 +166,14 @@ class Synapse
 
 let tests = [
 	new Test([0, 0], 1),
-	new Test([1, 1], 0),
-	new Test([1, 0], 1),
+	new Test([1, 1], 1),
+	new Test([1, 0], 0),
 	new Test([0, 1], 0)
 ];
 
 let neural_network = new NeuralNetwork(2, 2);
 
-neural_network.train(tests, 100000);
+neural_network.trainOnTests(tests, 100000);
 
 neural_network.hidden_neurons.forEach(
 	(item, index) => 
